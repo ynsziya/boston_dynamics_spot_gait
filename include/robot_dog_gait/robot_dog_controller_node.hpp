@@ -11,6 +11,7 @@
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/imu.hpp>
 #include <std_msgs/msg/float64_multi_array.hpp>
+#include <std_msgs/msg/string.hpp>
 
 #include "robot_dog_gait/body_pose_controller.hpp"
 #include "robot_dog_gait/gait_engine.hpp"
@@ -40,6 +41,13 @@ namespace robot_dog_gait
 /// at that leg's mount point -- this is what makes turning look natural
 /// instead of all four legs taking identical steps), solves IK, and
 /// publishes all 12 joint angles in one shot.
+///
+/// A separate posture state machine (driven by String messages "sit" /
+/// "stand" on posture_cmd_topic) can smoothly blend, in joint space, from
+/// whatever the walking pipeline is currently outputting to a fixed
+/// crouched "sit" pose and back. While sitting or mid-transition, cmd_vel
+/// is ignored (the robot cannot walk while sitting) so gait + posture never
+/// fight each other.
 class RobotDogControllerNode : public rclcpp::Node
 {
 public:
@@ -53,11 +61,13 @@ private:
 
   void cmdVelCallback(const geometry_msgs::msg::Twist::SharedPtr msg);
   void imuCallback(const sensor_msgs::msg::Imu::SharedPtr msg);
+  void postureCallback(const std_msgs::msg::String::SharedPtr msg);
   void controlLoop();
 
   // --- ROS interfaces ------------------------------------------------
   rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr cmd_vel_sub_;
   rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr imu_sub_;
+  rclcpp::Subscription<std_msgs::msg::String>::SharedPtr posture_sub_;
   rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr joint_command_pub_;
   rclcpp::TimerBase::SharedPtr control_timer_;
   rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr param_callback_handle_;
@@ -80,9 +90,13 @@ private:
   double latest_roll_{0.0};
   double latest_pitch_{0.0};
   bool have_imu_{false};
+  double sit_target_{0.0};  ///< guarded by state_mutex_: 0 = stand, 1 = sit
 
   rclcpp::Time last_loop_time_;
   bool have_last_loop_time_{false};
+
+  // --- Posture (sit/stand) blend state -- control-loop-only, no lock needed
+  double sit_blend_{0.0};  ///< current joint-space blend, 0 (stand) .. 1 (sit)
 
   // --- Cached parameters ------------------------------------------------
   double control_frequency_hz_{100.0};
@@ -95,6 +109,10 @@ private:
   double max_step_frequency_hz_{2.2};
   double max_stride_{0.18};
   bool use_imu_feedback_{false};
+
+  // --- Sit / stand posture ------------------------------------------------
+  double sit_transition_duration_sec_{1.5};
+  LegJointAngles sit_angles_{0.0, 1.3, -2.5};
 };
 
 }  // namespace robot_dog_gait

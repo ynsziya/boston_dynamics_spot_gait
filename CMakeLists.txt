@@ -56,6 +56,19 @@ install(TARGETS robot_dog_controller_node
   DESTINATION lib/${PROJECT_NAME}
 )
 
+# ---- Custom keyboard teleop (cmd_vel + sit/stand posture_cmd) -----------
+add_executable(robot_dog_teleop_node
+  src/keyboard_teleop_node.cpp
+  src/keyboard_teleop_main.cpp
+)
+ament_target_dependencies(robot_dog_teleop_node
+  rclcpp geometry_msgs std_msgs
+)
+
+install(TARGETS robot_dog_teleop_node
+  DESTINATION lib/${PROJECT_NAME}
+)
+
 install(DIRECTORY
   launch
   config

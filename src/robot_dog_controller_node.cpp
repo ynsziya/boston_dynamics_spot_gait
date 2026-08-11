@@ -52,6 +52,7 @@ RobotDogControllerNode::RobotDogControllerNode()
   const std::string cmd_vel_topic = get_parameter("cmd_vel_topic").as_string();
   const std::string imu_topic = get_parameter("imu_topic").as_string();
   const std::string joint_commands_topic = get_parameter("joint_commands_topic").as_string();
+  const std::string posture_cmd_topic = get_parameter("posture_cmd_topic").as_string();
 
   cmd_vel_sub_ = create_subscription<geometry_msgs::msg::Twist>(
     cmd_vel_topic, rclcpp::QoS(10),
@@ -60,6 +61,10 @@ RobotDogControllerNode::RobotDogControllerNode()
   imu_sub_ = create_subscription<sensor_msgs::msg::Imu>(
     imu_topic, rclcpp::SensorDataQoS(),
     std::bind(&RobotDogControllerNode::imuCallback, this, std::placeholders::_1));
+
+  posture_sub_ = create_subscription<std_msgs::msg::String>(
+    posture_cmd_topic, rclcpp::QoS(10),
+    std::bind(&RobotDogControllerNode::postureCallback, this, std::placeholders::_1));
 
   joint_command_pub_ = create_publisher<std_msgs::msg::Float64MultiArray>(
     joint_commands_topic, rclcpp::QoS(10));
@@ -79,9 +84,10 @@ RobotDogControllerNode::RobotDogControllerNode()
   RCLCPP_INFO(
     get_logger(),
     "robot_dog_controller_node started: cmd_vel='%s' imu='%s' commands='%s' "
-    "control_freq=%.1f Hz gait='%s'",
+    "posture='%s' control_freq=%.1f Hz gait='%s'",
     cmd_vel_topic.c_str(), imu_topic.c_str(), joint_commands_topic.c_str(),
-    control_frequency_hz_, get_parameter("gait_type").as_string().c_str());
+    posture_cmd_topic.c_str(), control_frequency_hz_,
+    get_parameter("gait_type").as_string().c_str());
 }
 
 void RobotDogControllerNode::declareParameters()
@@ -90,6 +96,7 @@ void RobotDogControllerNode::declareParameters()
   declare_parameter<std::string>("cmd_vel_topic", "/cmd_vel");
   declare_parameter<std::string>("imu_topic", "/imu");
   declare_parameter<std::string>("joint_commands_topic", "/leg_position_controller/commands");
+  declare_parameter<std::string>("posture_cmd_topic", "/posture_cmd");
 
   // --- Control loop -------------------------------------------------------
   declare_parameter<double>("control_frequency_hz", control_frequency_hz_);
@@ -119,6 +126,15 @@ void RobotDogControllerNode::declareParameters()
   declare_parameter<double>("roll_compensation_gain", body_pose_.params().roll_compensation_gain);
   declare_parameter<double>("max_trim_z", body_pose_.params().max_trim_z);
 
+  // --- Sit / stand posture -------------------------------------------------
+  // Fixed joint-space target the robot blends into (in joint space, not via
+  // IK) when "sit" is received on posture_cmd_topic; blends back out to
+  // whatever the walking pipeline outputs when "stand" is received.
+  declare_parameter<double>("sit_hip_roll", sit_angles_.hip_roll);
+  declare_parameter<double>("sit_hip_pitch", sit_angles_.hip_pitch);
+  declare_parameter<double>("sit_knee", sit_angles_.knee);
+  declare_parameter<double>("sit_transition_duration_sec", sit_transition_duration_sec_);
+
   // Apply the just-declared values into the core objects / cached fields.
   control_frequency_hz_ = get_parameter("control_frequency_hz").as_double();
   cmd_vel_timeout_sec_ = get_parameter("cmd_vel_timeout_sec").as_double();
@@ -145,6 +161,11 @@ void RobotDogControllerNode::declareParameters()
   body_params.roll_compensation_gain = get_parameter("roll_compensation_gain").as_double();
   body_params.max_trim_z = get_parameter("max_trim_z").as_double();
   body_pose_.setParams(body_params);
+
+  sit_angles_.hip_roll = get_parameter("sit_hip_roll").as_double();
+  sit_angles_.hip_pitch = get_parameter("sit_hip_pitch").as_double();
+  sit_angles_.knee = get_parameter("sit_knee").as_double();
+  sit_transition_duration_sec_ = get_parameter("sit_transition_duration_sec").as_double();
 }
 
 void RobotDogControllerNode::applyGaitTypeParam(const std::string & name)
@@ -197,6 +218,14 @@ rcl_interfaces::msg::SetParametersResult RobotDogControllerNode::onParametersSet
       if (name == "roll_compensation_gain") {bp.roll_compensation_gain = p.as_double();}
       if (name == "max_trim_z") {bp.max_trim_z = p.as_double();}
       body_pose_.setParams(bp);
+    } else if (name == "sit_hip_roll") {
+      sit_angles_.hip_roll = p.as_double();
+    } else if (name == "sit_hip_pitch") {
+      sit_angles_.hip_pitch = p.as_double();
+    } else if (name == "sit_knee") {
+      sit_angles_.knee = p.as_double();
+    } else if (name == "sit_transition_duration_sec") {
+      sit_transition_duration_sec_ = p.as_double();
     }
   }
 
@@ -237,6 +266,29 @@ void RobotDogControllerNode::imuCallback(const sensor_msgs::msg::Imu::SharedPtr 
   have_imu_ = true;
 }
 
+void RobotDogControllerNode::postureCallback(const std_msgs::msg::String::SharedPtr msg)
+{
+  std::string cmd = msg->data;
+  std::transform(cmd.begin(), cmd.end(), cmd.begin(), [](unsigned char c) {
+      return static_cast<char>(std::tolower(c));
+    });
+
+  double target;
+  if (cmd == "sit") {
+    target = 1.0;
+  } else if (cmd == "stand" || cmd == "up" || cmd == "stand_up") {
+    target = 0.0;
+  } else {
+    RCLCPP_WARN(
+      get_logger(), "Unknown posture_cmd '%s' (expected 'sit' or 'stand'), ignoring",
+      msg->data.c_str());
+    return;
+  }
+
+  std::lock_guard<std::mutex> lock(state_mutex_);
+  sit_target_ = target;
+}
+
 void RobotDogControllerNode::controlLoop()
 {
   const auto current_time = now();
@@ -256,6 +308,7 @@ void RobotDogControllerNode::controlLoop()
   double roll = 0.0;
   double pitch = 0.0;
   bool imu_ok = false;
+  double sit_target = 0.0;
   {
     std::lock_guard<std::mutex> lock(state_mutex_);
     cmd = latest_cmd_;
@@ -272,11 +325,27 @@ void RobotDogControllerNode::controlLoop()
     roll = latest_roll_;
     pitch = latest_pitch_;
     imu_ok = have_imu_;
+    sit_target = sit_target_;
   }
+
+  // Advance the sit/stand joint-space blend toward its target at a fixed
+  // rate (1 / sit_transition_duration_sec_ per second) so "sit" and "stand"
+  // are smooth, time-based motions rather than instant pose snaps.
+  const double sit_rate = (sit_transition_duration_sec_ > 1e-6) ?
+    1.0 / sit_transition_duration_sec_ : 1e9;
+  if (sit_blend_ < sit_target) {
+    sit_blend_ = std::min(sit_target, sit_blend_ + sit_rate * dt);
+  } else if (sit_blend_ > sit_target) {
+    sit_blend_ = std::max(sit_target, sit_blend_ - sit_rate * dt);
+  }
+  // The robot cannot walk while sitting or mid-transition: force cmd_vel to
+  // zero for the whole time sit_target requests "sit" or the blend hasn't
+  // fully returned to "stand" yet, so gait and posture never fight.
+  const bool posture_locked = (sit_target > 0.5) || (sit_blend_ > 1e-3);
 
   // Safety (only when timeout > 0): no recent teleop command -> stand still
   // rather than keep executing a possibly-stale velocity command.
-  if (cmd_is_stale) {
+  if (cmd_is_stale || posture_locked) {
     cmd = geometry_msgs::msg::Twist();
   }
 
@@ -360,9 +429,14 @@ void RobotDogControllerNode::controlLoop()
         "%s leg target unreachable, using clamped IK solution", toString(leg).c_str());
     }
 
-    msg.data[idx++] = angles.hip_roll;
-    msg.data[idx++] = angles.hip_pitch;
-    msg.data[idx++] = angles.knee;
+    // Joint-space blend toward the fixed sit pose. Blending in joint space
+    // (rather than the Cartesian foot target before IK) sidesteps any IK
+    // reachability concerns for the deep-crouch sit pose and gives a
+    // trivially smooth, monotonic interpolation of every actuator.
+    const double w = sit_blend_;
+    msg.data[idx++] = (1.0 - w) * angles.hip_roll + w * sit_angles_.hip_roll;
+    msg.data[idx++] = (1.0 - w) * angles.hip_pitch + w * sit_angles_.hip_pitch;
+    msg.data[idx++] = (1.0 - w) * angles.knee + w * sit_angles_.knee;
   }
 
   joint_command_pub_->publish(msg);
