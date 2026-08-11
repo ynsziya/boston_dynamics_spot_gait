@@ -54,4 +54,4 @@ robot_dog_controller_node:
     sit_hip_roll: 0.0
     sit_hip_pitch: 1.3
     sit_knee: -2.5
-    sit_transition_duration_sec: 0.8   # seconds for a full sit<->stand blend
+    sit_transition_duration_sec: 0.5   # seconds for a full sit<->stand blend
