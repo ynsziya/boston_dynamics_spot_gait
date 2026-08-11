@@ -1,173 +1,364 @@
 #include "robot_dog_gait/robot_dog_controller_node.hpp"
 
-#include <chrono>
+#include <algorithm>
 #include <cmath>
-#include <functional>
-
-using namespace std::chrono_literals;
 
 namespace robot_dog_gait
 {
 
-RobotDogControllerNode::RobotDogControllerNode(const rclcpp::NodeOptions & options)
-: Node("robot_dog_controller", options),
-  model_(RobotDogModel::fromDefaults()),
-  gait_engine_()
+namespace
 {
-  loadParameters();
+inline double clampd(double v, double lo, double hi)
+{
+  return std::max(lo, std::min(hi, v));
+}
 
-  gait_engine_.setParams(gait_params_);
-  traj_ = std::make_unique<TrajectoryGenerator>(model_, gait_params_);
-  pose_ctrl_ = std::make_unique<BodyPoseController>(model_);
-  pose_ctrl_->setTarget(body_target_);
+GaitType gaitTypeFromString(const std::string & name, const rclcpp::Logger & logger)
+{
+  std::string lower = name;
+  std::transform(lower.begin(), lower.end(), lower.begin(), [](unsigned char c) {
+      return static_cast<char>(std::tolower(c));
+    });
+  if (lower == "trot") {return GaitType::TROT;}
+  if (lower == "walk") {return GaitType::WALK;}
+  if (lower == "pace") {return GaitType::PACE;}
+  if (lower == "bound") {return GaitType::BOUND;}
+  RCLCPP_WARN(logger, "Unknown gait_type '%s', falling back to 'trot'", name.c_str());
+  return GaitType::TROT;
+}
+}  // namespace
 
-  for (int i = 0; i < 4; ++i) {
-    ik_[static_cast<size_t>(i)] =
-      std::make_unique<LegKinematics>(model_.legs[static_cast<size_t>(i)]);
+RobotDogControllerNode::RobotDogControllerNode()
+: Node("robot_dog_controller_node"),
+  leg_kinematics_{
+    LegKinematics(model_.geometry(), model_.mount(LegId::FL).is_left),
+    LegKinematics(model_.geometry(), model_.mount(LegId::FR).is_left),
+    LegKinematics(model_.geometry(), model_.mount(LegId::RL).is_left),
+    LegKinematics(model_.geometry(), model_.mount(LegId::RR).is_left)},
+  gait_(GaitType::TROT, /*step_frequency_hz=*/0.0, /*duty_factor=*/0.5)
+{
+  declareParameters();
+
+  // Neutral foot targets: forward kinematics of the exact pose baked into
+  // spot_zero.urdf's <ros2_control> initial_value fields, so cmd_vel == 0
+  // reproduces exactly the pose the robot already spawns in (see
+  // RobotDogModel::standingPoseAngles() for the rationale).
+  const LegJointAngles standing = RobotDogModel::standingPoseAngles();
+  for (LegId leg : kAllLegs) {
+    const auto idx = static_cast<std::size_t>(leg);
+    neutral_foot_position_[idx] = leg_kinematics_[idx].solveFk(standing);
   }
 
+  const std::string cmd_vel_topic = get_parameter("cmd_vel_topic").as_string();
+  const std::string imu_topic = get_parameter("imu_topic").as_string();
+  const std::string joint_commands_topic = get_parameter("joint_commands_topic").as_string();
+
   cmd_vel_sub_ = create_subscription<geometry_msgs::msg::Twist>(
-    "cmd_vel", 10,
+    cmd_vel_topic, rclcpp::QoS(10),
     std::bind(&RobotDogControllerNode::cmdVelCallback, this, std::placeholders::_1));
 
-  special_sub_ = create_subscription<std_msgs::msg::String>(
-    "robot_dog/special_cmd", 10,
-    std::bind(&RobotDogControllerNode::specialCmdCallback, this, std::placeholders::_1));
+  imu_sub_ = create_subscription<sensor_msgs::msg::Imu>(
+    imu_topic, rclcpp::SensorDataQoS(),
+    std::bind(&RobotDogControllerNode::imuCallback, this, std::placeholders::_1));
 
-  joint_pub_ = create_publisher<std_msgs::msg::Float64MultiArray>(command_topic_, 10);
+  joint_command_pub_ = create_publisher<std_msgs::msg::Float64MultiArray>(
+    joint_commands_topic, rclcpp::QoS(10));
 
-  const auto period = std::chrono::duration<double>(1.0 / control_rate_hz_);
-  timer_ = create_wall_timer(
+  const auto now_time = now();
+  last_cmd_time_ = now_time;
+  last_loop_time_ = now_time;
+
+  const auto period = std::chrono::duration<double>(1.0 / control_frequency_hz_);
+  control_timer_ = create_wall_timer(
     std::chrono::duration_cast<std::chrono::nanoseconds>(period),
-    std::bind(&RobotDogControllerNode::controlTick, this));
+    std::bind(&RobotDogControllerNode::controlLoop, this));
+
+  param_callback_handle_ = add_on_set_parameters_callback(
+    std::bind(&RobotDogControllerNode::onParametersSet, this, std::placeholders::_1));
 
   RCLCPP_INFO(
     get_logger(),
-    "robot_dog_controller ready (gait=%s, rate=%.1f Hz, cmd=%s)",
-    GaitEngine::toString(gait_params_.type), control_rate_hz_, command_topic_.c_str());
+    "robot_dog_controller_node started: cmd_vel='%s' imu='%s' commands='%s' "
+    "control_freq=%.1f Hz gait='%s'",
+    cmd_vel_topic.c_str(), imu_topic.c_str(), joint_commands_topic.c_str(),
+    control_frequency_hz_, get_parameter("gait_type").as_string().c_str());
 }
 
-void RobotDogControllerNode::loadParameters()
+void RobotDogControllerNode::declareParameters()
 {
-  declare_parameter<double>("control_rate_hz", 100.0);
-  declare_parameter<std::string>("command_topic", "/leg_position_controller/commands");
-  declare_parameter<std::string>("gait.type", "trot");
-  declare_parameter<double>("gait.frequency", 1.5);
-  declare_parameter<double>("gait.duty_factor", 0.5);
-  declare_parameter<double>("gait.swing_height", 0.06);
-  declare_parameter<double>("gait.stance_depth", 0.0);
-  declare_parameter<double>("gait.step_length", 0.12);
-  declare_parameter<double>("gait.step_width", 0.06);
-  declare_parameter<double>("body.nominal_height", model_.nominal_height);
-  declare_parameter<double>("body.roll", 0.0);
-  declare_parameter<double>("body.pitch", 0.0);
+  // --- Topics -----------------------------------------------------------
+  declare_parameter<std::string>("cmd_vel_topic", "/cmd_vel");
+  declare_parameter<std::string>("imu_topic", "/imu");
+  declare_parameter<std::string>("joint_commands_topic", "/leg_position_controller/commands");
 
-  control_rate_hz_ = get_parameter("control_rate_hz").as_double();
-  command_topic_ = get_parameter("command_topic").as_string();
+  // --- Control loop -------------------------------------------------------
+  declare_parameter<double>("control_frequency_hz", control_frequency_hz_);
+  declare_parameter<double>("cmd_vel_timeout_sec", cmd_vel_timeout_sec_);
 
-  gait_params_.type = GaitEngine::gaitFromString(get_parameter("gait.type").as_string());
-  gait_params_.frequency = get_parameter("gait.frequency").as_double();
-  gait_params_.duty_factor = get_parameter("gait.duty_factor").as_double();
-  gait_params_.swing_height = get_parameter("gait.swing_height").as_double();
-  gait_params_.stance_depth = get_parameter("gait.stance_depth").as_double();
-  gait_params_.step_length = get_parameter("gait.step_length").as_double();
-  gait_params_.step_width = get_parameter("gait.step_width").as_double();
+  // --- Teleop shaping -----------------------------------------------------
+  declare_parameter<double>("linear_deadband", linear_deadband_);
+  declare_parameter<double>("angular_deadband", angular_deadband_);
+  declare_parameter<double>("max_linear_speed", max_linear_speed_);
+  declare_parameter<double>("max_angular_speed", max_angular_speed_);
+  declare_parameter<double>("max_stride", max_stride_);
 
-  model_.nominal_height = get_parameter("body.nominal_height").as_double();
-  body_target_.height = model_.nominal_height;
-  body_target_.roll = get_parameter("body.roll").as_double();
-  body_target_.pitch = get_parameter("body.pitch").as_double();
+  // --- Gait ---------------------------------------------------------------
+  declare_parameter<std::string>("gait_type", "trot");
+  declare_parameter<double>("duty_factor", gait_.dutyFactor());
+  declare_parameter<double>("min_step_frequency_hz", min_step_frequency_hz_);
+  declare_parameter<double>("max_step_frequency_hz", max_step_frequency_hz_);
 
-  joint_names_ = {
-    "fl_hip_roll_joint", "fl_hip_yaw_joint", "fl_knee_joint",
-    "fr_hip_roll_joint", "fr_hip_yaw_joint", "fr_knee_joint",
-    "rl_hip_roll_joint", "rl_hip_yaw_joint", "rl_knee_joint",
-    "rr_hip_roll_joint", "rr_hip_yaw_joint", "rr_knee_joint",
-  };
+  // --- Swing trajectory shape ---------------------------------------------
+  declare_parameter<double>("step_height", trajectory_.params().step_height);
+  declare_parameter<double>("control_point_fraction", trajectory_.params().control_point_fraction);
+
+  // --- Body pose trim / IMU leveling --------------------------------------
+  declare_parameter<bool>("use_imu_feedback", use_imu_feedback_);
+  declare_parameter<double>("body_height_trim", body_pose_.params().body_height_trim);
+  declare_parameter<double>("pitch_compensation_gain", body_pose_.params().pitch_compensation_gain);
+  declare_parameter<double>("roll_compensation_gain", body_pose_.params().roll_compensation_gain);
+  declare_parameter<double>("max_trim_z", body_pose_.params().max_trim_z);
+
+  // Apply the just-declared values into the core objects / cached fields.
+  control_frequency_hz_ = get_parameter("control_frequency_hz").as_double();
+  cmd_vel_timeout_sec_ = get_parameter("cmd_vel_timeout_sec").as_double();
+  linear_deadband_ = get_parameter("linear_deadband").as_double();
+  angular_deadband_ = get_parameter("angular_deadband").as_double();
+  max_linear_speed_ = get_parameter("max_linear_speed").as_double();
+  max_angular_speed_ = get_parameter("max_angular_speed").as_double();
+  max_stride_ = get_parameter("max_stride").as_double();
+  min_step_frequency_hz_ = get_parameter("min_step_frequency_hz").as_double();
+  max_step_frequency_hz_ = get_parameter("max_step_frequency_hz").as_double();
+  use_imu_feedback_ = get_parameter("use_imu_feedback").as_bool();
+
+  applyGaitTypeParam(get_parameter("gait_type").as_string());
+  gait_.setDutyFactor(get_parameter("duty_factor").as_double());
+
+  TrajectoryGenerator::Params traj_params;
+  traj_params.step_height = get_parameter("step_height").as_double();
+  traj_params.control_point_fraction = get_parameter("control_point_fraction").as_double();
+  trajectory_.setParams(traj_params);
+
+  BodyPoseController::Params body_params;
+  body_params.body_height_trim = get_parameter("body_height_trim").as_double();
+  body_params.pitch_compensation_gain = get_parameter("pitch_compensation_gain").as_double();
+  body_params.roll_compensation_gain = get_parameter("roll_compensation_gain").as_double();
+  body_params.max_trim_z = get_parameter("max_trim_z").as_double();
+  body_pose_.setParams(body_params);
+}
+
+void RobotDogControllerNode::applyGaitTypeParam(const std::string & name)
+{
+  gait_ = GaitEngine(gaitTypeFromString(name, get_logger()), gait_.stepFrequency(), gait_.dutyFactor());
+}
+
+rcl_interfaces::msg::SetParametersResult RobotDogControllerNode::onParametersSet(
+  const std::vector<rclcpp::Parameter> & params)
+{
+  // Live-tunable subset -- topics / control_frequency_hz require a restart
+  // since they're only used once, at construction time, to create
+  // subscriptions/publishers/timers.
+  for (const auto & p : params) {
+    const auto & name = p.get_name();
+    if (name == "gait_type") {
+      applyGaitTypeParam(p.as_string());
+    } else if (name == "duty_factor") {
+      gait_.setDutyFactor(p.as_double());
+    } else if (name == "min_step_frequency_hz") {
+      min_step_frequency_hz_ = p.as_double();
+    } else if (name == "max_step_frequency_hz") {
+      max_step_frequency_hz_ = p.as_double();
+    } else if (name == "linear_deadband") {
+      linear_deadband_ = p.as_double();
+    } else if (name == "angular_deadband") {
+      angular_deadband_ = p.as_double();
+    } else if (name == "max_linear_speed") {
+      max_linear_speed_ = p.as_double();
+    } else if (name == "max_angular_speed") {
+      max_angular_speed_ = p.as_double();
+    } else if (name == "max_stride") {
+      max_stride_ = p.as_double();
+    } else if (name == "cmd_vel_timeout_sec") {
+      cmd_vel_timeout_sec_ = p.as_double();
+    } else if (name == "use_imu_feedback") {
+      use_imu_feedback_ = p.as_bool();
+    } else if (name == "step_height" || name == "control_point_fraction") {
+      TrajectoryGenerator::Params tp = trajectory_.params();
+      if (name == "step_height") {tp.step_height = p.as_double();}
+      if (name == "control_point_fraction") {tp.control_point_fraction = p.as_double();}
+      trajectory_.setParams(tp);
+    } else if (
+      name == "body_height_trim" || name == "pitch_compensation_gain" ||
+      name == "roll_compensation_gain" || name == "max_trim_z")
+    {
+      BodyPoseController::Params bp = body_pose_.params();
+      if (name == "body_height_trim") {bp.body_height_trim = p.as_double();}
+      if (name == "pitch_compensation_gain") {bp.pitch_compensation_gain = p.as_double();}
+      if (name == "roll_compensation_gain") {bp.roll_compensation_gain = p.as_double();}
+      if (name == "max_trim_z") {bp.max_trim_z = p.as_double();}
+      body_pose_.setParams(bp);
+    }
+  }
+
+  rcl_interfaces::msg::SetParametersResult result;
+  result.successful = true;
+  return result;
 }
 
 void RobotDogControllerNode::cmdVelCallback(const geometry_msgs::msg::Twist::SharedPtr msg)
 {
-  cmd_.vx = msg->linear.x;
-  cmd_.vy = msg->linear.y;
-  cmd_.wz = msg->angular.z;
+  std::lock_guard<std::mutex> lock(state_mutex_);
+  latest_cmd_ = *msg;
+  last_cmd_time_ = now();
+  have_cmd_ = true;
 }
 
-void RobotDogControllerNode::specialCmdCallback(const std_msgs::msg::String::SharedPtr msg)
+void RobotDogControllerNode::imuCallback(const sensor_msgs::msg::Imu::SharedPtr msg)
 {
-  const std::string & c = msg->data;
-  if (c == "stand") {
-    enabled_ = true;
-    cmd_ = {};
-    RCLCPP_INFO(get_logger(), "Stand / enable gait");
-  } else if (c == "sit" || c == "stop") {
-    enabled_ = false;
-    cmd_ = {};
-    RCLCPP_INFO(get_logger(), "Sit / disable gait");
-  } else if (c == "trot" || c == "walk" || c == "pace" || c == "bound") {
-    gait_params_.type = GaitEngine::gaitFromString(c);
-    gait_engine_.setGait(gait_params_.type);
-    traj_->setGaitParams(gait_params_);
-    RCLCPP_INFO(get_logger(), "Gait -> %s", c.c_str());
-  } else {
-    RCLCPP_WARN(get_logger(), "Unknown special_cmd: %s", c.c_str());
-  }
+  const double x = msg->orientation.x;
+  const double y = msg->orientation.y;
+  const double z = msg->orientation.z;
+  const double w = msg->orientation.w;
+
+  // Roll/pitch from quaternion (standard formulas, REP-103 ENU convention:
+  // X forward, Y left, Z up). Yaw is not needed here since only body
+  // tilt -- not heading -- feeds into BodyPoseController.
+  const double sinr_cosp = 2.0 * (w * x + y * z);
+  const double cosr_cosp = 1.0 - 2.0 * (x * x + y * y);
+  const double roll = std::atan2(sinr_cosp, cosr_cosp);
+
+  const double sinp = 2.0 * (w * y - z * x);
+  const double pitch =
+    (std::fabs(sinp) >= 1.0) ? std::copysign(M_PI / 2.0, sinp) : std::asin(sinp);
+
+  std::lock_guard<std::mutex> lock(state_mutex_);
+  latest_roll_ = roll;
+  latest_pitch_ = pitch;
+  have_imu_ = true;
 }
 
-void RobotDogControllerNode::controlTick()
+void RobotDogControllerNode::controlLoop()
 {
-  const double dt = 1.0 / control_rate_hz_;
-  std_msgs::msg::Float64MultiArray out;
-  out.data.assign(12, 0.0);
+  const auto current_time = now();
 
-  if (!enabled_) {
-    // Hold a crouched default; refine later with sit trajectory.
-    const std::array<double, 3> sit{0.0, 0.9, -1.8};
-    for (int leg = 0; leg < 4; ++leg) {
-      out.data[static_cast<size_t>(leg * 3 + 0)] = sit[0];
-      out.data[static_cast<size_t>(leg * 3 + 1)] = sit[1];
-      out.data[static_cast<size_t>(leg * 3 + 2)] = sit[2];
+  double dt = 1.0 / control_frequency_hz_;
+  if (have_last_loop_time_) {
+    const double measured_dt = (current_time - last_loop_time_).seconds();
+    if (measured_dt > 0.0) {
+      dt = measured_dt;
     }
-    joint_pub_->publish(out);
-    return;
   }
+  last_loop_time_ = current_time;
+  have_last_loop_time_ = true;
 
-  const auto phases = gait_engine_.update(dt);
-  std::array<bool, 4> in_stance{};
-  for (int i = 0; i < 4; ++i) {
-    in_stance[static_cast<size_t>(i)] = !phases[static_cast<size_t>(i)].in_swing;
-  }
-
-  BodyPose measured{};
-  measured.height = model_.nominal_height;
-  const auto pose_off = pose_ctrl_->footOffsets(measured, in_stance);
-
-  for (int i = 0; i < 4; ++i) {
-    const LegId id = static_cast<LegId>(i);
-    auto ft = traj_->compute(id, phases[static_cast<size_t>(i)], cmd_);
-    ft.position.x += pose_off[static_cast<size_t>(i)].x;
-    ft.position.y += pose_off[static_cast<size_t>(i)].y;
-    ft.position.z += pose_off[static_cast<size_t>(i)].z;
-
-    JointAngles q;
-    if (!ik_[static_cast<size_t>(i)]->inverseKinematics(ft.position, q)) {
-      // Keep previous / zero on IK failure.
-      continue;
+  geometry_msgs::msg::Twist cmd;
+  bool cmd_is_stale = true;
+  double roll = 0.0;
+  double pitch = 0.0;
+  bool imu_ok = false;
+  {
+    std::lock_guard<std::mutex> lock(state_mutex_);
+    cmd = latest_cmd_;
+    if (have_cmd_) {
+      cmd_is_stale = (current_time - last_cmd_time_).seconds() > cmd_vel_timeout_sec_;
     }
-    out.data[static_cast<size_t>(i * 3 + 0)] = q.hip_roll;
-    out.data[static_cast<size_t>(i * 3 + 1)] = q.hip_yaw;
-    out.data[static_cast<size_t>(i * 3 + 2)] = q.knee;
+    roll = latest_roll_;
+    pitch = latest_pitch_;
+    imu_ok = have_imu_;
   }
 
-  joint_pub_->publish(out);
+  // Safety: no recent teleop command -> stand still rather than keep
+  // executing a possibly-stale velocity command indefinitely.
+  if (cmd_is_stale) {
+    cmd = geometry_msgs::msg::Twist();
+  }
+
+  double vx = clampd(cmd.linear.x, -max_linear_speed_, max_linear_speed_);
+  double vy = clampd(cmd.linear.y, -max_linear_speed_, max_linear_speed_);
+  double wz = clampd(cmd.angular.z, -max_angular_speed_, max_angular_speed_);
+
+  if (std::fabs(vx) < linear_deadband_) {vx = 0.0;}
+  if (std::fabs(vy) < linear_deadband_) {vy = 0.0;}
+  if (std::fabs(wz) < angular_deadband_) {wz = 0.0;}
+
+  const bool standing_still = (vx == 0.0 && vy == 0.0 && wz == 0.0);
+
+  double step_frequency = 0.0;
+  if (!standing_still) {
+    const double speed_ratio = clampd(
+      std::max(
+        std::hypot(vx, vy) / std::max(max_linear_speed_, 1e-6),
+        std::fabs(wz) / std::max(max_angular_speed_, 1e-6)),
+      0.0, 1.0);
+    step_frequency = min_step_frequency_hz_ +
+      speed_ratio * (max_step_frequency_hz_ - min_step_frequency_hz_);
+  }
+
+  // setStepFrequency() before update(): GaitEngine freezes its internal
+  // clock whenever step_frequency == 0 (isStanding()), and resumes from
+  // wherever it left off once it becomes nonzero again -- no foot pops.
+  gait_.setStepFrequency(step_frequency);
+  gait_.update(dt);
+
+  const double eff_roll = (use_imu_feedback_ && imu_ok) ? roll : 0.0;
+  const double eff_pitch = (use_imu_feedback_ && imu_ok) ? pitch : 0.0;
+
+  std_msgs::msg::Float64MultiArray msg;
+  msg.data.resize(12);
+  std::size_t idx = 0;
+
+  for (LegId leg : kAllLegs) {
+    const auto leg_idx = static_cast<std::size_t>(leg);
+    const LegMount & mount = model_.mount(leg);
+
+    // Per-leg velocity = commanded body velocity + tangential velocity
+    // from angular.z at this leg's mount point (v = v_body + omega x r).
+    // This is what makes turning look natural: outer legs take a longer
+    // stride than inner legs, instead of every leg doing an identical
+    // stride offset by some artificial yaw term.
+    const double leg_vx = vx - wz * mount.origin_in_base.y;
+    const double leg_vy = vy + wz * mount.origin_in_base.x;
+
+    double stride_x = 0.0;
+    double stride_y = 0.0;
+    if (step_frequency > 1e-6) {
+      stride_x = leg_vx / step_frequency;
+      stride_y = leg_vy / step_frequency;
+    }
+
+    // Safety clamp: guards against an unreachable IK target if a large
+    // cmd_vel is combined with a very low step frequency.
+    const double stride_mag = std::hypot(stride_x, stride_y);
+    if (stride_mag > max_stride_ && stride_mag > 1e-9) {
+      const double scale = max_stride_ / stride_mag;
+      stride_x *= scale;
+      stride_y *= scale;
+    }
+
+    const LegPhaseState phase = gait_.legPhaseState(leg);
+    const Vec3 offset = trajectory_.computeFootOffset(phase, stride_x, stride_y);
+    const Vec3 trim = body_pose_.computeTrim(mount.origin_in_base, eff_roll, eff_pitch);
+
+    const Vec3 target{
+      neutral_foot_position_[leg_idx].x + offset.x + trim.x,
+      neutral_foot_position_[leg_idx].y + offset.y + trim.y,
+      neutral_foot_position_[leg_idx].z + offset.z + trim.z,
+    };
+
+    LegJointAngles angles;
+    const bool reachable = leg_kinematics_[leg_idx].solveIk(target, angles);
+    if (!reachable) {
+      RCLCPP_WARN_THROTTLE(
+        get_logger(), *get_clock(), 1000,
+        "%s leg target unreachable, using clamped IK solution", toString(leg).c_str());
+    }
+
+    msg.data[idx++] = angles.hip_roll;
+    msg.data[idx++] = angles.hip_pitch;
+    msg.data[idx++] = angles.knee;
+  }
+
+  joint_command_pub_->publish(msg);
 }
 
 }  // namespace robot_dog_gait
-
-int main(int argc, char ** argv)
-{
-  rclcpp::init(argc, argv);
-  rclcpp::spin(std::make_shared<robot_dog_gait::RobotDogControllerNode>());
-  rclcpp::shutdown();
-  return 0;
-}

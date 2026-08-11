@@ -1,47 +1,28 @@
 #include "robot_dog_gait/body_pose_controller.hpp"
 
-#include <cmath>
+#include <algorithm>
 
 namespace robot_dog_gait
 {
 
-BodyPoseController::BodyPoseController(const RobotDogModel & model)
-: model_(model)
+BodyPoseController::BodyPoseController()
+: params_(Params())
 {
-  target_.height = model_.nominal_height;
 }
 
-void BodyPoseController::setGains(const BodyPoseGains & gains)
+BodyPoseController::BodyPoseController(const Params & params)
+: params_(params)
 {
-  gains_ = gains;
 }
 
-void BodyPoseController::setTarget(const BodyPose & target)
+Vec3 BodyPoseController::computeTrim(
+  const Vec3 & mount_origin_in_base, double measured_roll, double measured_pitch) const
 {
-  target_ = target;
-}
-
-std::array<Vec3, 4> BodyPoseController::footOffsets(
-  const BodyPose & measured,
-  const std::array<bool, 4> & in_stance) const
-{
-  const double roll_err = gains_.kp_roll * (target_.roll - measured.roll);
-  const double pitch_err = gains_.kp_pitch * (target_.pitch - measured.pitch);
-  const double height_err = gains_.kp_height * (target_.height - measured.height);
-
-  std::array<Vec3, 4> offsets{};
-  for (int i = 0; i < 4; ++i) {
-    if (!in_stance[static_cast<size_t>(i)]) {
-      continue;
-    }
-    const auto & hip = model_.legs[static_cast<size_t>(i)].hip_offset;
-    // Small-angle: Δz ≈ -pitch * x + roll * y + height
-    offsets[static_cast<size_t>(i)].x = 0.0;
-    offsets[static_cast<size_t>(i)].y = 0.0;
-    offsets[static_cast<size_t>(i)].z =
-      -pitch_err * hip.x + roll_err * hip.y - height_err;
-  }
-  return offsets;
+  double z = params_.body_height_trim;
+  z += params_.pitch_compensation_gain * mount_origin_in_base.x * measured_pitch;
+  z += params_.roll_compensation_gain * mount_origin_in_base.y * measured_roll;
+  z = std::max(-params_.max_trim_z, std::min(params_.max_trim_z, z));
+  return Vec3{0.0, 0.0, z};
 }
 
 }  // namespace robot_dog_gait

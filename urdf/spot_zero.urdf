@@ -40,14 +40,14 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://boston_dynamics_spot_urdf_ros2/meshes/base_link.STL" scale="0.001 0.001 0.001"/>
+        <mesh filename="package://robot_dog_gait/meshes/base_link.STL" scale="0.001 0.001 0.001"/>
       </geometry>
       <material name="spot_yellow"/>
     </visual>
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://boston_dynamics_spot_urdf_ros2/meshes/base_link.STL" scale="0.001 0.001 0.001"/>
+        <mesh filename="package://robot_dog_gait/meshes/base_link.STL" scale="0.001 0.001 0.001"/>
       </geometry>
     </collision>
   </link>
@@ -60,14 +60,14 @@
     <visual>
       <origin xyz="-0.489586 -0.035451 -0.064910" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://boston_dynamics_spot_urdf_ros2/meshes/camera.STL" scale="0.001 0.001 0.001"/>
+        <mesh filename="package://robot_dog_gait/meshes/camera.STL" scale="0.001 0.001 0.001"/>
       </geometry>
       <material name="midnight_black"/>
     </visual>
     <collision>
       <origin xyz="-0.489586 -0.035451 -0.064910" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://boston_dynamics_spot_urdf_ros2/meshes/camera.STL" scale="0.001 0.001 0.001"/>
+        <mesh filename="package://robot_dog_gait/meshes/camera.STL" scale="0.001 0.001 0.001"/>
       </geometry>
     </collision>
   </link>
@@ -85,14 +85,14 @@
     <visual>
       <origin xyz="-0.342651 -0.035451 -0.179617" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://boston_dynamics_spot_urdf_ros2/meshes/lidar.STL" scale="0.001 0.001 0.001"/>
+        <mesh filename="package://robot_dog_gait/meshes/lidar.STL" scale="0.001 0.001 0.001"/>
       </geometry>
       <material name="midnight_black"/>
     </visual>
     <collision>
       <origin xyz="-0.342651 -0.035451 -0.179617" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://boston_dynamics_spot_urdf_ros2/meshes/lidar.STL" scale="0.001 0.001 0.001"/>
+        <mesh filename="package://robot_dog_gait/meshes/lidar.STL" scale="0.001 0.001 0.001"/>
       </geometry>
     </collision>
   </link>
@@ -110,14 +110,14 @@
     <visual>
       <origin xyz="-0.066090 -0.035451 -0.002617" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://boston_dynamics_spot_urdf_ros2/meshes/imu_sensor.STL" scale="0.001 0.001 0.001"/>
+        <mesh filename="package://robot_dog_gait/meshes/imu_sensor.STL" scale="0.001 0.001 0.001"/>
       </geometry>
       <material name="midnight_black"/>
     </visual>
     <collision>
       <origin xyz="-0.066090 -0.035451 -0.002617" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://boston_dynamics_spot_urdf_ros2/meshes/imu_sensor.STL" scale="0.001 0.001 0.001"/>
+        <mesh filename="package://robot_dog_gait/meshes/imu_sensor.STL" scale="0.001 0.001 0.001"/>
       </geometry>
     </collision>
   </link>
@@ -142,14 +142,14 @@
     <visual>
       <origin xyz="-0.335676 -0.085451 -0.086617" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://boston_dynamics_spot_urdf_ros2/meshes/fl_hip_roll.STL" scale="0.001 0.001 0.001"/>
+        <mesh filename="package://robot_dog_gait/meshes/fl_hip_roll.STL" scale="0.001 0.001 0.001"/>
       </geometry>
       <material name="midnight_black"/>
     </visual>
     <collision>
       <origin xyz="-0.335676 -0.085451 -0.086617" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://boston_dynamics_spot_urdf_ros2/meshes/fl_hip_roll.STL" scale="0.001 0.001 0.001"/>
+        <mesh filename="package://robot_dog_gait/meshes/fl_hip_roll.STL" scale="0.001 0.001 0.001"/>
       </geometry>
     </collision>
   </link>
@@ -169,14 +169,14 @@
     <visual>
       <origin xyz="-0.335676 -0.085451 -0.086617" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://boston_dynamics_spot_urdf_ros2/meshes/fl_hip_roll_connector.STL" scale="0.001 0.001 0.001"/>
+        <mesh filename="package://robot_dog_gait/meshes/fl_hip_roll_connector.STL" scale="0.001 0.001 0.001"/>
       </geometry>
       <material name="silver"/>
     </visual>
     <collision>
       <origin xyz="-0.335676 -0.085451 -0.086617" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://boston_dynamics_spot_urdf_ros2/meshes/fl_hip_roll_connector.STL" scale="0.001 0.001 0.001"/>
+        <mesh filename="package://robot_dog_gait/meshes/fl_hip_roll_connector.STL" scale="0.001 0.001 0.001"/>
       </geometry>
     </collision>
   </link>
@@ -194,14 +194,14 @@
     <visual>
       <origin xyz="-0.385676 -0.155451 -0.086617" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://boston_dynamics_spot_urdf_ros2/meshes/fl_hip_yaw.STL" scale="0.001 0.001 0.001"/>
+        <mesh filename="package://robot_dog_gait/meshes/fl_hip_yaw.STL" scale="0.001 0.001 0.001"/>
       </geometry>
       <material name="spot_yellow"/>
     </visual>
     <collision>
       <origin xyz="-0.385676 -0.155451 -0.086617" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://boston_dynamics_spot_urdf_ros2/meshes/fl_hip_yaw.STL" scale="0.001 0.001 0.001"/>
+        <mesh filename="package://robot_dog_gait/meshes/fl_hip_yaw.STL" scale="0.001 0.001 0.001"/>
       </geometry>
     </collision>
   </link>
@@ -221,14 +221,14 @@
     <visual>
       <origin xyz="-0.385676 -0.155451 -0.086617" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://boston_dynamics_spot_urdf_ros2/meshes/fl_hip_yaw_connector.STL" scale="0.001 0.001 0.001"/>
+        <mesh filename="package://robot_dog_gait/meshes/fl_hip_yaw_connector.STL" scale="0.001 0.001 0.001"/>
       </geometry>
       <material name="silver"/>
     </visual>
     <collision>
       <origin xyz="-0.385676 -0.155451 -0.086617" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://boston_dynamics_spot_urdf_ros2/meshes/fl_hip_yaw_connector.STL" scale="0.001 0.001 0.001"/>
+        <mesh filename="package://robot_dog_gait/meshes/fl_hip_yaw_connector.STL" scale="0.001 0.001 0.001"/>
       </geometry>
     </collision>
   </link>
@@ -246,21 +246,29 @@
     <visual>
       <origin xyz="-0.425288 -0.218986 0.311924" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://boston_dynamics_spot_urdf_ros2/meshes/fl_knee.STL" scale="0.001 0.001 0.001"/>
+        <mesh filename="package://robot_dog_gait/meshes/fl_knee.STL" scale="0.001 0.001 0.001"/>
       </geometry>
       <material name="midnight_black"/>
     </visual>
     <collision name="fl_knee_collision">
       <origin xyz="-0.425288 -0.218986 0.311924" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://boston_dynamics_spot_urdf_ros2/meshes/fl_knee.STL" scale="0.001 0.001 0.001"/>
+        <mesh filename="package://robot_dog_gait/meshes/fl_knee.STL" scale="0.001 0.001 0.001"/>
       </geometry>
     </collision>
-    <!-- Simple foot sphere for reliable Gazebo contact sensor -->
+    <!-- Simple foot sphere for reliable Gazebo contact sensor.
+         Origin/radius fitted (least squares sphere fit) directly to the
+         rounded foot-pad region of fl_knee.STL, in the knee joint's local
+         frame; this is NOT the mesh-alignment offset used by <visual> and
+         <collision> above (that offset places a primitive's origin at the
+         far end of the whole assembly, nowhere near the actual foot).
+         The previous value (same as the mesh offset) put the contact
+         sphere about 0.31m above and 0.43m behind the knee, instead of
+         about 0.37m below and 0.02m inboard of it. -->
     <collision name="fl_foot_contact_sphere">
-      <origin xyz="-0.425288 -0.218986 0.311924" rpy="0 0 0"/>
+      <origin xyz="0.000730 -0.022200 -0.370380" rpy="0 0 0"/>
       <geometry>
-        <sphere radius="0.035"/>
+        <sphere radius="0.0415"/>
       </geometry>
     </collision>
   </link>
@@ -281,14 +289,14 @@
     <visual>
       <origin xyz="-0.335676 0.014549 -0.086617" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://boston_dynamics_spot_urdf_ros2/meshes/fr_hip_roll.STL" scale="0.001 0.001 0.001"/>
+        <mesh filename="package://robot_dog_gait/meshes/fr_hip_roll.STL" scale="0.001 0.001 0.001"/>
       </geometry>
       <material name="midnight_black"/>
     </visual>
     <collision>
       <origin xyz="-0.335676 0.014549 -0.086617" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://boston_dynamics_spot_urdf_ros2/meshes/fr_hip_roll.STL" scale="0.001 0.001 0.001"/>
+        <mesh filename="package://robot_dog_gait/meshes/fr_hip_roll.STL" scale="0.001 0.001 0.001"/>
       </geometry>
     </collision>
   </link>
@@ -308,14 +316,14 @@
     <visual>
       <origin xyz="-0.335676 0.014549 -0.086617" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://boston_dynamics_spot_urdf_ros2/meshes/fr_hip_roll_connector.STL" scale="0.001 0.001 0.001"/>
+        <mesh filename="package://robot_dog_gait/meshes/fr_hip_roll_connector.STL" scale="0.001 0.001 0.001"/>
       </geometry>
       <material name="silver"/>
     </visual>
     <collision>
       <origin xyz="-0.335676 0.014549 -0.086617" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://boston_dynamics_spot_urdf_ros2/meshes/fr_hip_roll_connector.STL" scale="0.001 0.001 0.001"/>
+        <mesh filename="package://robot_dog_gait/meshes/fr_hip_roll_connector.STL" scale="0.001 0.001 0.001"/>
       </geometry>
     </collision>
   </link>
@@ -333,14 +341,14 @@
     <visual>
       <origin xyz="-0.385676 0.084549 -0.086617" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://boston_dynamics_spot_urdf_ros2/meshes/fr_hip_yaw.STL" scale="0.001 0.001 0.001"/>
+        <mesh filename="package://robot_dog_gait/meshes/fr_hip_yaw.STL" scale="0.001 0.001 0.001"/>
       </geometry>
       <material name="spot_yellow"/>
     </visual>
     <collision>
       <origin xyz="-0.385676 0.084549 -0.086617" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://boston_dynamics_spot_urdf_ros2/meshes/fr_hip_yaw.STL" scale="0.001 0.001 0.001"/>
+        <mesh filename="package://robot_dog_gait/meshes/fr_hip_yaw.STL" scale="0.001 0.001 0.001"/>
       </geometry>
     </collision>
   </link>
@@ -360,14 +368,14 @@
     <visual>
       <origin xyz="-0.385676 0.084549 -0.086617" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://boston_dynamics_spot_urdf_ros2/meshes/fr_hip_yaw_connector.STL" scale="0.001 0.001 0.001"/>
+        <mesh filename="package://robot_dog_gait/meshes/fr_hip_yaw_connector.STL" scale="0.001 0.001 0.001"/>
       </geometry>
       <material name="silver"/>
     </visual>
     <collision>
       <origin xyz="-0.385676 0.084549 -0.086617" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://boston_dynamics_spot_urdf_ros2/meshes/fr_hip_yaw_connector.STL" scale="0.001 0.001 0.001"/>
+        <mesh filename="package://robot_dog_gait/meshes/fr_hip_yaw_connector.STL" scale="0.001 0.001 0.001"/>
       </geometry>
     </collision>
   </link>
@@ -385,20 +393,21 @@
     <visual>
       <origin xyz="-0.425288 0.148084 0.311924" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://boston_dynamics_spot_urdf_ros2/meshes/fr_knee.STL" scale="0.001 0.001 0.001"/>
+        <mesh filename="package://robot_dog_gait/meshes/fr_knee.STL" scale="0.001 0.001 0.001"/>
       </geometry>
       <material name="midnight_black"/>
     </visual>
     <collision name="fr_knee_collision">
       <origin xyz="-0.425288 0.148084 0.311924" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://boston_dynamics_spot_urdf_ros2/meshes/fr_knee.STL" scale="0.001 0.001 0.001"/>
+        <mesh filename="package://robot_dog_gait/meshes/fr_knee.STL" scale="0.001 0.001 0.001"/>
       </geometry>
     </collision>
+    <!-- Foot pad center, fitted from fr_knee.STL; see fl_foot_contact_sphere note above. -->
     <collision name="fr_foot_contact_sphere">
-      <origin xyz="-0.425288 0.148084 0.311924" rpy="0 0 0"/>
+      <origin xyz="0.000770 0.021910 -0.370470" rpy="0 0 0"/>
       <geometry>
-        <sphere radius="0.035"/>
+        <sphere radius="0.0415"/>
       </geometry>
     </collision>
   </link>
@@ -419,14 +428,14 @@
     <visual>
       <origin xyz="0.224324 -0.085451 -0.086617" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://boston_dynamics_spot_urdf_ros2/meshes/rl_hip_roll.STL" scale="0.001 0.001 0.001"/>
+        <mesh filename="package://robot_dog_gait/meshes/rl_hip_roll.STL" scale="0.001 0.001 0.001"/>
       </geometry>
       <material name="midnight_black"/>
     </visual>
     <collision>
       <origin xyz="0.224324 -0.085451 -0.086617" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://boston_dynamics_spot_urdf_ros2/meshes/rl_hip_roll.STL" scale="0.001 0.001 0.001"/>
+        <mesh filename="package://robot_dog_gait/meshes/rl_hip_roll.STL" scale="0.001 0.001 0.001"/>
       </geometry>
     </collision>
   </link>
@@ -446,14 +455,14 @@
     <visual>
       <origin xyz="0.224324 -0.085451 -0.086617" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://boston_dynamics_spot_urdf_ros2/meshes/rl_hip_roll_connector.STL" scale="0.001 0.001 0.001"/>
+        <mesh filename="package://robot_dog_gait/meshes/rl_hip_roll_connector.STL" scale="0.001 0.001 0.001"/>
       </geometry>
       <material name="silver"/>
     </visual>
     <collision>
       <origin xyz="0.224324 -0.085451 -0.086617" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://boston_dynamics_spot_urdf_ros2/meshes/rl_hip_roll_connector.STL" scale="0.001 0.001 0.001"/>
+        <mesh filename="package://robot_dog_gait/meshes/rl_hip_roll_connector.STL" scale="0.001 0.001 0.001"/>
       </geometry>
     </collision>
   </link>
@@ -471,14 +480,14 @@
     <visual>
       <origin xyz="0.274324 -0.155451 -0.086617" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://boston_dynamics_spot_urdf_ros2/meshes/rl_hip_yaw.STL" scale="0.001 0.001 0.001"/>
+        <mesh filename="package://robot_dog_gait/meshes/rl_hip_yaw.STL" scale="0.001 0.001 0.001"/>
       </geometry>
       <material name="spot_yellow"/>
     </visual>
     <collision>
       <origin xyz="0.274324 -0.155451 -0.086617" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://boston_dynamics_spot_urdf_ros2/meshes/rl_hip_yaw.STL" scale="0.001 0.001 0.001"/>
+        <mesh filename="package://robot_dog_gait/meshes/rl_hip_yaw.STL" scale="0.001 0.001 0.001"/>
       </geometry>
     </collision>
   </link>
@@ -498,14 +507,14 @@
     <visual>
       <origin xyz="0.274324 -0.155451 -0.086617" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://boston_dynamics_spot_urdf_ros2/meshes/rl_hip_yaw_connector.STL" scale="0.001 0.001 0.001"/>
+        <mesh filename="package://robot_dog_gait/meshes/rl_hip_yaw_connector.STL" scale="0.001 0.001 0.001"/>
       </geometry>
       <material name="silver"/>
     </visual>
     <collision>
       <origin xyz="0.274324 -0.155451 -0.086617" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://boston_dynamics_spot_urdf_ros2/meshes/rl_hip_yaw_connector.STL" scale="0.001 0.001 0.001"/>
+        <mesh filename="package://robot_dog_gait/meshes/rl_hip_yaw_connector.STL" scale="0.001 0.001 0.001"/>
       </geometry>
     </collision>
   </link>
@@ -523,20 +532,21 @@
     <visual>
       <origin xyz="0.234712 -0.218986 0.311924" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://boston_dynamics_spot_urdf_ros2/meshes/rl_knee.STL" scale="0.001 0.001 0.001"/>
+        <mesh filename="package://robot_dog_gait/meshes/rl_knee.STL" scale="0.001 0.001 0.001"/>
       </geometry>
       <material name="midnight_black"/>
     </visual>
     <collision name="rl_knee_collision">
       <origin xyz="0.234712 -0.218986 0.311924" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://boston_dynamics_spot_urdf_ros2/meshes/rl_knee.STL" scale="0.001 0.001 0.001"/>
+        <mesh filename="package://robot_dog_gait/meshes/rl_knee.STL" scale="0.001 0.001 0.001"/>
       </geometry>
     </collision>
+    <!-- Foot pad center, fitted from rl_knee.STL; see fl_foot_contact_sphere note above. -->
     <collision name="rl_foot_contact_sphere">
-      <origin xyz="0.234712 -0.218986 0.311924" rpy="0 0 0"/>
+      <origin xyz="0.000710 -0.022170 -0.370600" rpy="0 0 0"/>
       <geometry>
-        <sphere radius="0.035"/>
+        <sphere radius="0.0415"/>
       </geometry>
     </collision>
   </link>
@@ -557,14 +567,14 @@
     <visual>
       <origin xyz="0.224324 0.014549 -0.086617" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://boston_dynamics_spot_urdf_ros2/meshes/rr_hip_roll.STL" scale="0.001 0.001 0.001"/>
+        <mesh filename="package://robot_dog_gait/meshes/rr_hip_roll.STL" scale="0.001 0.001 0.001"/>
       </geometry>
       <material name="midnight_black"/>
     </visual>
     <collision>
       <origin xyz="0.224324 0.014549 -0.086617" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://boston_dynamics_spot_urdf_ros2/meshes/rr_hip_roll.STL" scale="0.001 0.001 0.001"/>
+        <mesh filename="package://robot_dog_gait/meshes/rr_hip_roll.STL" scale="0.001 0.001 0.001"/>
       </geometry>
     </collision>
   </link>
@@ -584,14 +594,14 @@
     <visual>
       <origin xyz="0.224324 0.014549 -0.086617" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://boston_dynamics_spot_urdf_ros2/meshes/rr_hip_roll_connector.STL" scale="0.001 0.001 0.001"/>
+        <mesh filename="package://robot_dog_gait/meshes/rr_hip_roll_connector.STL" scale="0.001 0.001 0.001"/>
       </geometry>
       <material name="silver"/>
     </visual>
     <collision>
       <origin xyz="0.224324 0.014549 -0.086617" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://boston_dynamics_spot_urdf_ros2/meshes/rr_hip_roll_connector.STL" scale="0.001 0.001 0.001"/>
+        <mesh filename="package://robot_dog_gait/meshes/rr_hip_roll_connector.STL" scale="0.001 0.001 0.001"/>
       </geometry>
     </collision>
   </link>
@@ -609,14 +619,14 @@
     <visual>
       <origin xyz="0.274324 0.084549 -0.086617" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://boston_dynamics_spot_urdf_ros2/meshes/rr_hip_yaw.STL" scale="0.001 0.001 0.001"/>
+        <mesh filename="package://robot_dog_gait/meshes/rr_hip_yaw.STL" scale="0.001 0.001 0.001"/>
       </geometry>
       <material name="spot_yellow"/>
     </visual>
     <collision>
       <origin xyz="0.274324 0.084549 -0.086617" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://boston_dynamics_spot_urdf_ros2/meshes/rr_hip_yaw.STL" scale="0.001 0.001 0.001"/>
+        <mesh filename="package://robot_dog_gait/meshes/rr_hip_yaw.STL" scale="0.001 0.001 0.001"/>
       </geometry>
     </collision>
   </link>
@@ -636,14 +646,14 @@
     <visual>
       <origin xyz="0.274324 0.084549 -0.086617" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://boston_dynamics_spot_urdf_ros2/meshes/rr_hip_yaw_connector.STL" scale="0.001 0.001 0.001"/>
+        <mesh filename="package://robot_dog_gait/meshes/rr_hip_yaw_connector.STL" scale="0.001 0.001 0.001"/>
       </geometry>
       <material name="silver"/>
     </visual>
     <collision>
       <origin xyz="0.274324 0.084549 -0.086617" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://boston_dynamics_spot_urdf_ros2/meshes/rr_hip_yaw_connector.STL" scale="0.001 0.001 0.001"/>
+        <mesh filename="package://robot_dog_gait/meshes/rr_hip_yaw_connector.STL" scale="0.001 0.001 0.001"/>
       </geometry>
     </collision>
   </link>
@@ -661,20 +671,21 @@
     <visual>
       <origin xyz="0.234712 0.148084 0.311924" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://boston_dynamics_spot_urdf_ros2/meshes/rr_knee.STL" scale="0.001 0.001 0.001"/>
+        <mesh filename="package://robot_dog_gait/meshes/rr_knee.STL" scale="0.001 0.001 0.001"/>
       </geometry>
       <material name="midnight_black"/>
     </visual>
     <collision name="rr_knee_collision">
       <origin xyz="0.234712 0.148084 0.311924" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://boston_dynamics_spot_urdf_ros2/meshes/rr_knee.STL" scale="0.001 0.001 0.001"/>
+        <mesh filename="package://robot_dog_gait/meshes/rr_knee.STL" scale="0.001 0.001 0.001"/>
       </geometry>
     </collision>
+    <!-- Foot pad center, fitted from rr_knee.STL; see fl_foot_contact_sphere note above. -->
     <collision name="rr_foot_contact_sphere">
-      <origin xyz="0.234712 0.148084 0.311924" rpy="0 0 0"/>
+      <origin xyz="0.000780 0.021790 -0.370380" rpy="0 0 0"/>
       <geometry>
-        <sphere radius="0.035"/>
+        <sphere radius="0.0415"/>
       </geometry>
     </collision>
   </link>

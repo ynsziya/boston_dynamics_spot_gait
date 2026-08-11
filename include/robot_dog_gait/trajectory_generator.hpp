@@ -1,4 +1,5 @@
-#pragma once
+#ifndef ROBOT_DOG_GAIT__TRAJECTORY_GENERATOR_HPP_
+#define ROBOT_DOG_GAIT__TRAJECTORY_GENERATOR_HPP_
 
 #include "robot_dog_gait/gait_engine.hpp"
 #include "robot_dog_gait/robot_dog_model.hpp"
@@ -6,42 +7,48 @@
 namespace robot_dog_gait
 {
 
-struct Twist2D
-{
-  double vx{0.0};  // m/s body x
-  double vy{0.0};  // m/s body y
-  double wz{0.0};  // rad/s yaw
-};
-
-struct FootTrajectory
-{
-  Vec3 position{};   // hip frame [m]
-  Vec3 velocity{};   // hip frame [m/s]
-};
-
-/// Swing (cubic Bezier) + stance (linear) foot trajectories in the hip frame.
+/// Turns a leg's phase state (from GaitEngine) into a concrete foot
+/// position OFFSET (relative to that leg's neutral standing foot position),
+/// in the leg's local frame (x forward, y left, z up).
+///
+/// - STANCE: straight line, foot moves from +stride/2 to -stride/2 as the
+///   body travels over it (this is what actually propels the robot).
+/// - SWING: cubic Bezier arc that lifts the foot, carries it forward, and
+///   sets it back down -- shaped to have a fast, clean liftoff/touchdown
+///   (matches the qualitative shape CHAMP and most trot controllers use).
 class TrajectoryGenerator
 {
 public:
-  TrajectoryGenerator(const RobotDogModel & model, const GaitParams & gait);
+  struct Params
+  {
+    /// Peak foot clearance height during swing, meters.
+    double step_height{0.06};
+    /// Where along the swing horizontal span (0-1) the Bezier control
+    /// points sit; smaller = punchier liftoff/touchdown, larger = floatier.
+    double control_point_fraction{0.2};
+  };
 
-  void setGaitParams(const GaitParams & gait);
-  void setNominalFoot(LegId id, const Vec3 & foot_hip);
+  TrajectoryGenerator();
+  explicit TrajectoryGenerator(const Params & params);
 
-  /// Compute foot target for one leg given phase and body velocity command.
-  FootTrajectory compute(
-    LegId id,
-    const LegPhase & phase,
-    const Twist2D & cmd) const;
+  /// stride_x / stride_y: total peak-to-peak horizontal foot travel for
+  /// this leg over one full gait cycle (meters), i.e. how far the foot
+  /// swings forward during swing phase / walks backward during stance.
+  /// Typically stride = commanded_velocity * (1 / step_frequency).
+  /// Positive stride_x = robot moving forward, positive stride_y = moving
+  /// left (strafing) or turning-induced lateral component.
+  Vec3 computeFootOffset(const LegPhaseState & phase, double stride_x, double stride_y) const;
+
+  void setParams(const Params & params) { params_ = params; }
+  const Params & params() const { return params_; }
 
 private:
-  static Vec3 cubicBezier(const Vec3 & p0, const Vec3 & p1, const Vec3 & p2, const Vec3 & p3, double s);
-  static Vec3 cubicBezierDerivative(
-    const Vec3 & p0, const Vec3 & p1, const Vec3 & p2, const Vec3 & p3, double s);
+  Vec3 computeStanceOffset(double progress, double stride_x, double stride_y) const;
+  Vec3 computeSwingOffset(double progress, double stride_x, double stride_y) const;
 
-  RobotDogModel model_;
-  GaitParams gait_;
-  std::array<Vec3, 4> nominal_feet_{};
+  Params params_;
 };
 
 }  // namespace robot_dog_gait
+
+#endif  // ROBOT_DOG_GAIT__TRAJECTORY_GENERATOR_HPP_

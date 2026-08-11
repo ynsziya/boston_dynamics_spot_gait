@@ -1,59 +1,79 @@
 #include "robot_dog_gait/robot_dog_model.hpp"
 
-#include <stdexcept>
-
 namespace robot_dog_gait
 {
 
-namespace
+std::string toString(LegId leg)
 {
-LegGeometry makeLeg(const Vec3 & hip, double side_sign, double l_abad, double l_thigh, double l_shank)
-{
-  LegGeometry g;
-  g.hip_offset = hip;
-  g.side_sign = side_sign;
-  g.l_abad = l_abad;
-  g.l_thigh = l_thigh;
-  g.l_shank = l_shank;
-  return g;
-}
-}  // namespace
-
-RobotDogModel RobotDogModel::fromDefaults()
-{
-  // Values derived from bosdyn_spot_ros2/urdf/spot_zero.urdf (spot_zero).
-  constexpr double l_abad = 0.0860;   // approx |hip_yaw origin| in yz
-  constexpr double l_thigh = 0.4050;  // |knee origin from hip_yaw|
-  constexpr double l_shank = 0.3800;  // approx hip-height - thigh projection
-
-  RobotDogModel m;
-  m.body_length = 0.5600;   // |fl_x - rl_x|
-  m.body_width = 0.1000;    // approx left-right hip spacing
-  m.nominal_height = 0.55;
-
-  m.legs[static_cast<int>(LegId::FL)] =
-    makeLeg({0.335676, 0.085451, 0.086617}, +1.0, l_abad, l_thigh, l_shank);
-  m.legs[static_cast<int>(LegId::FR)] =
-    makeLeg({0.335676, -0.014549, 0.086617}, -1.0, l_abad, l_thigh, l_shank);
-  m.legs[static_cast<int>(LegId::RL)] =
-    makeLeg({-0.224324, 0.085451, 0.086617}, +1.0, l_abad, l_thigh, l_shank);
-  m.legs[static_cast<int>(LegId::RR)] =
-    makeLeg({-0.224324, -0.014549, 0.086617}, -1.0, l_abad, l_thigh, l_shank);
-  return m;
-}
-
-const LegGeometry & RobotDogModel::leg(LegId id) const
-{
-  const int i = static_cast<int>(id);
-  if (i < 0 || i >= static_cast<int>(LegId::COUNT)) {
-    throw std::out_of_range("LegId out of range");
+  switch (leg) {
+    case LegId::FL: return "fl";
+    case LegId::FR: return "fr";
+    case LegId::RL: return "rl";
+    case LegId::RR: return "rr";
   }
-  return legs[static_cast<size_t>(i)];
+  return "unknown";
 }
 
-LegGeometry & RobotDogModel::leg(LegId id)
+bool isLeftLeg(LegId leg)
 {
-  return const_cast<LegGeometry &>(static_cast<const RobotDogModel *>(this)->leg(id));
+  return leg == LegId::FL || leg == LegId::RL;
+}
+
+bool isFrontLeg(LegId leg)
+{
+  return leg == LegId::FL || leg == LegId::FR;
+}
+
+RobotDogModel::RobotDogModel()
+{
+  // hip_roll_joint origins relative to base_link, read directly from
+  // spot_zero.urdf. These define where each leg attaches to the body.
+  mounts_[static_cast<std::size_t>(LegId::FL)] =
+    LegMount{LegId::FL, Vec3{0.335676, 0.085451, 0.086617}, true, true};
+  mounts_[static_cast<std::size_t>(LegId::FR)] =
+    LegMount{LegId::FR, Vec3{0.335676, -0.014549, 0.086617}, false, true};
+  mounts_[static_cast<std::size_t>(LegId::RL)] =
+    LegMount{LegId::RL, Vec3{-0.224324, 0.085451, 0.086617}, true, false};
+  mounts_[static_cast<std::size_t>(LegId::RR)] =
+    LegMount{LegId::RR, Vec3{-0.224324, -0.014549, 0.086617}, false, false};
+
+  // NOTE: FL/RL y=0.085451 vs FR/RR y=-0.014549 look asymmetric at first
+  // glance -- that's because base_link's own origin (in spot_zero.urdf) is
+  // itself offset from the robot's true centerline (see <link name="base_link">
+  // <inertial origin y=0.035451>). The left/right symmetry is preserved
+  // around that offset centerline, not around base_link y=0. We keep the
+  // raw URDF values here rather than "fixing" them, so foot targets computed
+  // in base_link frame land correctly without needing a separate correction.
+}
+
+std::string RobotDogModel::jointNameHipRoll(LegId leg) const
+{
+  return toString(leg) + "_hip_roll_joint";
+}
+
+std::string RobotDogModel::jointNameHipPitch(LegId leg) const
+{
+  // Physically a pitch joint (rotates about Y), but named "hip_yaw" in the
+  // URDF / joint_names.yaml / spot_controllers.yaml. We must match that
+  // exact name when publishing commands.
+  return toString(leg) + "_hip_yaw_joint";
+}
+
+std::string RobotDogModel::jointNameKnee(LegId leg) const
+{
+  return toString(leg) + "_knee_joint";
+}
+
+std::array<std::string, 12> RobotDogModel::orderedJointNames() const
+{
+  std::array<std::string, 12> names;
+  std::size_t idx = 0;
+  for (LegId leg : kAllLegs) {
+    names[idx++] = jointNameHipRoll(leg);
+    names[idx++] = jointNameHipPitch(leg);
+    names[idx++] = jointNameKnee(leg);
+  }
+  return names;
 }
 
 }  // namespace robot_dog_gait

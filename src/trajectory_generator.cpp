@@ -1,95 +1,64 @@
 #include "robot_dog_gait/trajectory_generator.hpp"
 
-#include <algorithm>
-#include <cmath>
+#include "robot_dog_gait/bezier_curve.hpp"
 
 namespace robot_dog_gait
 {
 
-namespace
+TrajectoryGenerator::TrajectoryGenerator()
+: params_(Params())
 {
-Vec3 operator+(const Vec3 & a, const Vec3 & b) {return {a.x + b.x, a.y + b.y, a.z + b.z};}
-Vec3 operator-(const Vec3 & a, const Vec3 & b) {return {a.x - b.x, a.y - b.y, a.z - b.z};}
-Vec3 operator*(const Vec3 & a, double s) {return {a.x * s, a.y * s, a.z * s};}
-}  // namespace
+}
 
-TrajectoryGenerator::TrajectoryGenerator(const RobotDogModel & model, const GaitParams & gait)
-: model_(model), gait_(gait)
+TrajectoryGenerator::TrajectoryGenerator(const Params & params)
+: params_(params)
 {
-  // Default nominal feet: under hip, at -nominal_height in hip frame (approx).
-  for (int i = 0; i < 4; ++i) {
-    nominal_feet_[static_cast<size_t>(i)] = {0.0, 0.0, -model_.nominal_height};
+}
+
+Vec3 TrajectoryGenerator::computeFootOffset(
+  const LegPhaseState & phase, double stride_x, double stride_y) const
+{
+  if (phase.type == GaitPhaseType::STANCE) {
+    return computeStanceOffset(phase.progress, stride_x, stride_y);
   }
+  return computeSwingOffset(phase.progress, stride_x, stride_y);
 }
 
-void TrajectoryGenerator::setGaitParams(const GaitParams & gait)
+Vec3 TrajectoryGenerator::computeStanceOffset(
+  double progress, double stride_x, double stride_y) const
 {
-  gait_ = gait;
+  // Foot travels linearly from +stride/2 (just touched down, ahead of body)
+  // to -stride/2 (about to lift off, behind body). This is what pushes the
+  // body forward -- z stays at 0 (foot flat on the ground the whole time).
+  const double t = 0.5 - progress;  // +0.5 -> -0.5
+  return Vec3{stride_x * t, stride_y * t, 0.0};
 }
 
-void TrajectoryGenerator::setNominalFoot(LegId id, const Vec3 & foot_hip)
+Vec3 TrajectoryGenerator::computeSwingOffset(
+  double progress, double stride_x, double stride_y) const
 {
-  nominal_feet_[static_cast<size_t>(id)] = foot_hip;
-}
+  const Vec3 start{-0.5 * stride_x, -0.5 * stride_y, 0.0};
+  const Vec3 end{0.5 * stride_x, 0.5 * stride_y, 0.0};
 
-Vec3 TrajectoryGenerator::cubicBezier(
-  const Vec3 & p0, const Vec3 & p1, const Vec3 & p2, const Vec3 & p3, double s)
-{
-  const double u = 1.0 - s;
-  return p0 * (u * u * u) + p1 * (3.0 * u * u * s) + p2 * (3.0 * u * s * s) + p3 * (s * s * s);
-}
+  // A cubic Bezier with both middle control points raised to the same
+  // height only reaches 0.75x that height at its true peak (t=0.5) -- a
+  // well-known property of the Bernstein basis. Scale by 4/3 so the
+  // resulting curve's actual apex equals params_.step_height exactly.
+  const double control_z = params_.step_height * (4.0 / 3.0);
+  const double f = params_.control_point_fraction;
+  const Vec3 p1{
+    start.x + (end.x - start.x) * f,
+    start.y + (end.y - start.y) * f,
+    control_z
+  };
+  const Vec3 p2{
+    start.x + (end.x - start.x) * (1.0 - f),
+    start.y + (end.y - start.y) * (1.0 - f),
+    control_z
+  };
 
-Vec3 TrajectoryGenerator::cubicBezierDerivative(
-  const Vec3 & p0, const Vec3 & p1, const Vec3 & p2, const Vec3 & p3, double s)
-{
-  const double u = 1.0 - s;
-  return (p1 - p0) * (3.0 * u * u) + (p2 - p1) * (6.0 * u * s) + (p3 - p2) * (3.0 * s * s);
-}
-
-FootTrajectory TrajectoryGenerator::compute(
-  LegId id,
-  const LegPhase & phase,
-  const Twist2D & cmd) const
-{
-  const auto & hip = model_.leg(id).hip_offset;
-  const Vec3 nom = nominal_feet_[static_cast<size_t>(id)];
-
-  // Raibert-style foothold relative to nominal, expressed in hip frame.
-  const double stance_T = (gait_.frequency > 1e-6) ?
-    (gait_.duty_factor / gait_.frequency) : 0.0;
-  Vec3 step{
-    cmd.vx * stance_T * 0.5 + hip.y * cmd.wz * stance_T * 0.5,
-    cmd.vy * stance_T * 0.5 - hip.x * cmd.wz * stance_T * 0.5,
-    0.0};
-
-  // Clamp step using configured lengths.
-  const double sx = std::max(1e-6, gait_.step_length);
-  const double sy = std::max(1e-6, gait_.step_width);
-  step.x = std::clamp(step.x, -sx, sx);
-  step.y = std::clamp(step.y, -sy, sy);
-
-  const Vec3 p_start = nom + step * (-1.0);
-  const Vec3 p_end = nom + step;
-
-  FootTrajectory out;
-  if (phase.in_swing) {
-    const double s = std::clamp(phase.swing_progress, 0.0, 1.0);
-    const Vec3 p1{p_start.x, p_start.y, p_start.z + gait_.swing_height};
-    const Vec3 p2{p_end.x, p_end.y, p_end.z + gait_.swing_height};
-    out.position = cubicBezier(p_start, p1, p2, p_end, s);
-    // Velocity roughly scaled by swing duration.
-    const double swing_T = (gait_.frequency > 1e-6) ?
-      ((1.0 - gait_.duty_factor) / gait_.frequency) : 1.0;
-    const Vec3 d = cubicBezierDerivative(p_start, p1, p2, p_end, s);
-    out.velocity = d * ((swing_T > 1e-6) ? (1.0 / swing_T) : 0.0);
-  } else {
-    const double s = std::clamp(phase.stance_progress, 0.0, 1.0);
-    out.position = p_end + (p_start - p_end) * s;
-    out.position.z = nom.z + gait_.stance_depth;
-    const double stance_T_safe = std::max(1e-6, stance_T);
-    out.velocity = (p_start - p_end) * (1.0 / stance_T_safe);
-  }
-  return out;
+  CubicBezier curve(start, p1, p2, end);
+  return curve.evaluate(progress);
 }
 
 }  // namespace robot_dog_gait
