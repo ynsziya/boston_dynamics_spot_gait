@@ -18,6 +18,7 @@
 #include "robot_dog_gait/leg_kinematics.hpp"
 #include "robot_dog_gait/robot_dog_model.hpp"
 #include "robot_dog_gait/trajectory_generator.hpp"
+#include "robot_dog_gait/trick_player.hpp"
 
 namespace robot_dog_gait
 {
@@ -42,12 +43,11 @@ namespace robot_dog_gait
 /// instead of all four legs taking identical steps), solves IK, and
 /// publishes all 12 joint angles in one shot.
 ///
-/// A separate posture state machine (driven by String messages "sit" /
-/// "stand" on posture_cmd_topic) can smoothly blend, in joint space, from
-/// whatever the walking pipeline is currently outputting to a fixed
-/// crouched "sit" pose and back. While sitting or mid-transition, cmd_vel
-/// is ignored (the robot cannot walk while sitting) so gait + posture never
-/// fight each other.
+/// A posture channel (String on posture_cmd_topic) drives:
+///   - sit / stand: smooth joint-space blend to a fixed sit pose
+///   - wave / play_bow / beg / shake: timed TrickPlayer choreographies
+/// While sitting, mid sit-transition, or mid-trick, cmd_vel is ignored so
+/// gait and posture never fight each other.
 class RobotDogControllerNode : public rclcpp::Node
 {
 public:
@@ -79,6 +79,7 @@ private:
   GaitEngine gait_;
   TrajectoryGenerator trajectory_;
   BodyPoseController body_pose_;
+  TrickPlayer trick_player_;
 
   // --- Teleop / sensor state (written from subscription callbacks, read
   // from the control-loop timer -- guarded so this stays safe even if a
@@ -91,6 +92,10 @@ private:
   double latest_pitch_{0.0};
   bool have_imu_{false};
   double sit_target_{0.0};  ///< guarded by state_mutex_: 0 = stand, 1 = sit
+  /// Trick start requested from posture callback; consumed on the control
+  /// loop thread so TrickPlayer is only touched from one place.
+  TrickId pending_trick_{TrickId::None};
+  bool cancel_trick_{false};
 
   rclcpp::Time last_loop_time_;
   bool have_last_loop_time_{false};

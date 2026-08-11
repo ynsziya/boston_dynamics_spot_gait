@@ -273,6 +273,17 @@ void RobotDogControllerNode::postureCallback(const std_msgs::msg::String::Shared
       return static_cast<char>(std::tolower(c));
     });
 
+  const TrickId trick = TrickPlayer::idFromString(cmd);
+  if (trick != TrickId::None) {
+    std::lock_guard<std::mutex> lock(state_mutex_);
+    // Tricks and sit are mutually exclusive: drop sit and queue the show.
+    sit_target_ = 0.0;
+    cancel_trick_ = false;
+    pending_trick_ = trick;
+    RCLCPP_INFO(get_logger(), "posture_cmd trick '%s'", TrickPlayer::toString(trick));
+    return;
+  }
+
   double target;
   if (cmd == "sit") {
     target = 1.0;
@@ -280,13 +291,17 @@ void RobotDogControllerNode::postureCallback(const std_msgs::msg::String::Shared
     target = 0.0;
   } else {
     RCLCPP_WARN(
-      get_logger(), "Unknown posture_cmd '%s' (expected 'sit' or 'stand'), ignoring",
+      get_logger(),
+      "Unknown posture_cmd '%s' (expected sit|stand|wave|play_bow|beg|shake), ignoring",
       msg->data.c_str());
     return;
   }
 
   std::lock_guard<std::mutex> lock(state_mutex_);
   sit_target_ = target;
+  // sit/stand preempt any running choreography.
+  pending_trick_ = TrickId::None;
+  cancel_trick_ = true;
 }
 
 void RobotDogControllerNode::controlLoop()
@@ -309,6 +324,8 @@ void RobotDogControllerNode::controlLoop()
   double pitch = 0.0;
   bool imu_ok = false;
   double sit_target = 0.0;
+  TrickId pending_trick = TrickId::None;
+  bool cancel_trick = false;
   {
     std::lock_guard<std::mutex> lock(state_mutex_);
     cmd = latest_cmd_;
@@ -326,22 +343,41 @@ void RobotDogControllerNode::controlLoop()
     pitch = latest_pitch_;
     imu_ok = have_imu_;
     sit_target = sit_target_;
+    pending_trick = pending_trick_;
+    pending_trick_ = TrickId::None;
+    cancel_trick = cancel_trick_;
+    cancel_trick_ = false;
   }
+
+  if (cancel_trick) {
+    trick_player_.cancel();
+  }
+  if (pending_trick != TrickId::None) {
+    // Starting a trick clears any residual sit blend so the two posture
+    // systems don't stack weights on the same joints.
+    sit_blend_ = 0.0;
+    sit_target = 0.0;
+    trick_player_.start(pending_trick);
+  }
+  trick_player_.update(dt);
 
   // Advance the sit/stand joint-space blend toward its target at a fixed
   // rate (1 / sit_transition_duration_sec_ per second) so "sit" and "stand"
   // are smooth, time-based motions rather than instant pose snaps.
-  const double sit_rate = (sit_transition_duration_sec_ > 1e-6) ?
-    1.0 / sit_transition_duration_sec_ : 1e9;
-  if (sit_blend_ < sit_target) {
-    sit_blend_ = std::min(sit_target, sit_blend_ + sit_rate * dt);
-  } else if (sit_blend_ > sit_target) {
-    sit_blend_ = std::max(sit_target, sit_blend_ - sit_rate * dt);
+  // Skip while a trick owns the joints (sit was already forced to 0 above).
+  if (!trick_player_.active()) {
+    const double sit_rate = (sit_transition_duration_sec_ > 1e-6) ?
+      1.0 / sit_transition_duration_sec_ : 1e9;
+    if (sit_blend_ < sit_target) {
+      sit_blend_ = std::min(sit_target, sit_blend_ + sit_rate * dt);
+    } else if (sit_blend_ > sit_target) {
+      sit_blend_ = std::max(sit_target, sit_blend_ - sit_rate * dt);
+    }
   }
-  // The robot cannot walk while sitting or mid-transition: force cmd_vel to
-  // zero for the whole time sit_target requests "sit" or the blend hasn't
-  // fully returned to "stand" yet, so gait and posture never fight.
-  const bool posture_locked = (sit_target > 0.5) || (sit_blend_ > 1e-3);
+  // The robot cannot walk while sitting, mid sit-transition, or mid-trick:
+  // force cmd_vel to zero so gait and posture never fight.
+  const bool posture_locked =
+    trick_player_.active() || (sit_target > 0.5) || (sit_blend_ > 1e-3);
 
   // Safety (only when timeout > 0): no recent teleop command -> stand still
   // rather than keep executing a possibly-stale velocity command.
@@ -429,14 +465,21 @@ void RobotDogControllerNode::controlLoop()
         "%s leg target unreachable, using clamped IK solution", toString(leg).c_str());
     }
 
-    // Joint-space blend toward the fixed sit pose. Blending in joint space
-    // (rather than the Cartesian foot target before IK) sidesteps any IK
-    // reachability concerns for the deep-crouch sit pose and gives a
-    // trivially smooth, monotonic interpolation of every actuator.
-    const double w = sit_blend_;
-    msg.data[idx++] = (1.0 - w) * angles.hip_roll + w * sit_angles_.hip_roll;
-    msg.data[idx++] = (1.0 - w) * angles.hip_pitch + w * sit_angles_.hip_pitch;
-    msg.data[idx++] = (1.0 - w) * angles.knee + w * sit_angles_.knee;
+    // Joint-space posture overlay. Tricks take priority over sit: both blend
+    // in joint space (not via IK) so deep / asymmetric poses stay reachable
+    // and every actuator moves monotonically between targets.
+    if (trick_player_.active()) {
+      const double w = trick_player_.blendWeight();
+      const LegJointAngles & trick = trick_player_.targetPose().legs[leg_idx];
+      msg.data[idx++] = (1.0 - w) * angles.hip_roll + w * trick.hip_roll;
+      msg.data[idx++] = (1.0 - w) * angles.hip_pitch + w * trick.hip_pitch;
+      msg.data[idx++] = (1.0 - w) * angles.knee + w * trick.knee;
+    } else {
+      const double w = sit_blend_;
+      msg.data[idx++] = (1.0 - w) * angles.hip_roll + w * sit_angles_.hip_roll;
+      msg.data[idx++] = (1.0 - w) * angles.hip_pitch + w * sit_angles_.hip_pitch;
+      msg.data[idx++] = (1.0 - w) * angles.knee + w * sit_angles_.knee;
+    }
   }
 
   joint_command_pub_->publish(msg);

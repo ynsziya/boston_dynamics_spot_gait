@@ -23,6 +23,7 @@ add_library(robot_dog_gait_core
   src/gait_engine.cpp
   src/trajectory_generator.cpp
   src/body_pose_controller.cpp
+  src/trick_player.cpp
 )
 target_include_directories(robot_dog_gait_core PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>

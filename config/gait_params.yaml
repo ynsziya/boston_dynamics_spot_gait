@@ -4,7 +4,8 @@ robot_dog_controller_node:
     cmd_vel_topic: "/cmd_vel"
     imu_topic: "/imu"
     joint_commands_topic: "/leg_position_controller/commands"
-    posture_cmd_topic: "/posture_cmd"    # std_msgs/String: "sit" | "stand"
+    # std_msgs/String: sit | stand | wave | play_bow | beg | shake
+    posture_cmd_topic: "/posture_cmd"
 
     # --- Control loop -------------------------------------------------------
     control_frequency_hz: 100.0
@@ -50,7 +51,9 @@ robot_dog_controller_node:
     # Fixed joint-space pose (all 4 legs identical) the robot blends into
     # when "sit" arrives on posture_cmd_topic. Deeper knee bend + more
     # hip_pitch flex than standing (0.764 / -1.646) lowers the body onto its
-    # haunches. cmd_vel is ignored while sitting / mid-transition.
+    # haunches. cmd_vel is ignored while sitting / mid-transition / mid-trick.
+    # Tricks (wave, play_bow, beg, shake) are timed keyframe sequences in
+    # TrickPlayer -- no extra params here; they auto-return to stand.
     sit_hip_roll: 0.0
     sit_hip_pitch: 1.3
     sit_knee: -2.5

@@ -136,6 +136,18 @@ void KeyboardTeleopNode::handleKey(int key)
     case 'c': case 'C':
       publishPosture("stand");
       break;
+    case 'r': case 'R':
+      publishPosture("wave");
+      break;
+    case 'f': case 'F':
+      publishPosture("play_bow");
+      break;
+    case 'g': case 'G':
+      publishPosture("beg");
+      break;
+    case 't': case 'T':
+      publishPosture("shake");
+      break;
     case 'v': case 'V':
       linear_speed_ = std::min(max_linear_speed_, linear_speed_ + linear_step_);
       angular_speed_ = std::min(max_angular_speed_, angular_speed_ + angular_step_);
@@ -189,6 +201,11 @@ void KeyboardTeleopNode::printHelp() const
     "Duruş:\n"
     "  z         : otur (sit)\n"
     "  c         : kalk / ayakta dur (stand)\n"
+    "Gösteri:\n"
+    "  r         : selam (wave)\n"
+    "  f         : play bow\n"
+    "  g         : dilenci (beg)\n"
+    "  t         : body shake\n"
     "Hız:\n"
     "  v / b     : hızı artır / azalt\n"
     "Çıkış: Ctrl-C\n"

@@ -14,9 +14,9 @@ namespace robot_dog_gait
 
 /// Purpose-built keyboard teleop for robot_dog_gait: everything
 /// teleop_twist_keyboard offers (WASD + turning, latched cmd_vel, live
-/// speed adjustment) plus two keys the generic tool has no concept of --
-/// "sit" and "stand" -- published as std_msgs/String on posture_cmd_topic
-/// so RobotDogControllerNode's posture state machine can pick them up.
+/// speed adjustment) plus posture keys published as std_msgs/String on
+/// posture_cmd_topic -- sit/stand plus showpiece tricks (wave, play_bow,
+/// beg, shake) for RobotDogControllerNode's posture / TrickPlayer path.
 ///
 /// Puts the controlling terminal into raw, non-canonical, non-blocking
 /// mode (termios) so single keystrokes are read immediately without
