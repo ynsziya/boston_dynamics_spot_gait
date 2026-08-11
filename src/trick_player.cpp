@@ -179,10 +179,13 @@ void TrickPlayer::update(double dt)
 
 std::vector<TrickKeyframe> TrickPlayer::buildWave()
 {
-  // Front-left paw up + hip_roll wag, other three legs stay planted.
-  const LegJointAngles fl_up{0.12, 1.35, -2.15};
-  const LegJointAngles fl_left{-0.20, 1.35, -2.15};
-  const LegJointAngles fl_right{0.45, 1.35, -2.15};
+  // Front-left paw raised FORWARD (hip_pitch below stand swings the thigh
+  // ahead; the old 1.35 value was sit-like and tucked the paw backward),
+  // then hip_roll wag. Other three legs stay planted.
+  // stand hip_pitch = 0.764
+  const LegJointAngles fl_up{0.12, 0.32, -2.20};
+  const LegJointAngles fl_left{-0.20, 0.28, -2.20};
+  const LegJointAngles fl_right{0.45, 0.38, -2.20};
 
   const auto planted = [&](const LegJointAngles & fl) {
       return poseFromLegs(fl, kStand, kStand, kStand);
