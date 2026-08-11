@@ -33,12 +33,13 @@ namespace robot_dog_gait
 ///
 /// Runs a fixed-rate control loop (control_frequency_hz, default 100 Hz):
 /// each tick it reads the latest teleop command (applying a deadband, a
-/// speed clamp, and a "stale command" safety timeout), advances the gait
-/// clock, computes each leg's stride from the commanded body velocity
-/// (linear.x/y + the tangential contribution of angular.z at that leg's
-/// mount point -- this is what makes turning look natural instead of all
-/// four legs taking identical steps), solves IK, and publishes all 12
-/// joint angles in one shot.
+/// speed clamp, and an optional "stale command" timeout when
+/// cmd_vel_timeout_sec > 0; otherwise the last cmd_vel is latched),
+/// advances the gait clock, computes each leg's stride from the commanded
+/// body velocity (linear.x/y + the tangential contribution of angular.z
+/// at that leg's mount point -- this is what makes turning look natural
+/// instead of all four legs taking identical steps), solves IK, and
+/// publishes all 12 joint angles in one shot.
 class RobotDogControllerNode : public rclcpp::Node
 {
 public:
@@ -85,7 +86,7 @@ private:
 
   // --- Cached parameters ------------------------------------------------
   double control_frequency_hz_{100.0};
-  double cmd_vel_timeout_sec_{0.5};
+  double cmd_vel_timeout_sec_{0.0};
   double linear_deadband_{0.01};
   double angular_deadband_{0.02};
   double max_linear_speed_{0.4};

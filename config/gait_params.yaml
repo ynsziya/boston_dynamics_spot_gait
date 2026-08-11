@@ -7,9 +7,10 @@ robot_dog_controller_node:
 
     # --- Control loop -------------------------------------------------------
     control_frequency_hz: 100.0
-    # If no cmd_vel message arrives for this long, the robot stands still
-    # (safety watchdog for teleop dropouts / disconnects).
-    cmd_vel_timeout_sec: 0.5
+    # <= 0: latch last cmd_vel until a new message arrives (press once to
+    # move; space/k in teleop_twist_keyboard sends zero to stop).
+    # > 0: if no cmd_vel arrives for this long, stand still (hold-to-drive).
+    cmd_vel_timeout_sec: 0.0
 
     # --- Teleop shaping -----------------------------------------------------
     # Below these thresholds, small joystick/teleop noise is treated as zero

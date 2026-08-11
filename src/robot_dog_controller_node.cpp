@@ -260,15 +260,22 @@ void RobotDogControllerNode::controlLoop()
     std::lock_guard<std::mutex> lock(state_mutex_);
     cmd = latest_cmd_;
     if (have_cmd_) {
-      cmd_is_stale = (current_time - last_cmd_time_).seconds() > cmd_vel_timeout_sec_;
+      // timeout <= 0: latch last cmd_vel until a new message arrives
+      // (teleop_twist_keyboard one-shot keys). timeout > 0: hold-to-drive.
+      if (cmd_vel_timeout_sec_ <= 0.0) {
+        cmd_is_stale = false;
+      } else {
+        cmd_is_stale =
+          (current_time - last_cmd_time_).seconds() > cmd_vel_timeout_sec_;
+      }
     }
     roll = latest_roll_;
     pitch = latest_pitch_;
     imu_ok = have_imu_;
   }
 
-  // Safety: no recent teleop command -> stand still rather than keep
-  // executing a possibly-stale velocity command indefinitely.
+  // Safety (only when timeout > 0): no recent teleop command -> stand still
+  // rather than keep executing a possibly-stale velocity command.
   if (cmd_is_stale) {
     cmd = geometry_msgs::msg::Twist();
   }
