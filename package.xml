@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>robot_dog_gait</name>
+  <version>0.1.0</version>
+  <description>Quadruped gait engine: IK/FK, phase generation, foot trajectories, body pose, ROS2 controller.</description>
+  <maintainer email="yunus@todo.todo">yunus</maintainer>
+  <license>Apache-2.0</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <depend>rclcpp</depend>
+  <depend>std_msgs</depend>
+  <depend>geometry_msgs</depend>
+
+  <exec_depend>ros2launch</exec_depend>
+  <exec_depend>ament_index_python</exec_depend>
+  <!-- Description package (URDF/meshes); rename when robot_dog_description is split out. -->
+  <exec_depend>bosdyn_spot_ros2</exec_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

@@ -1,0 +1,18 @@
+/**:
+  ros__parameters:
+    control_rate_hz: 100.0
+    command_topic: "/leg_position_controller/commands"
+
+    gait:
+      type: "trot"          # walk | trot | pace | bound
+      frequency: 1.5        # Hz
+      duty_factor: 0.5      # stance fraction of cycle
+      swing_height: 0.06    # m
+      stance_depth: 0.0     # m
+      step_length: 0.12     # m at unit vx
+      step_width: 0.06      # m at unit vy
+
+    body:
+      nominal_height: 0.55  # m
+      roll: 0.0             # rad
+      pitch: 0.0            # rad
