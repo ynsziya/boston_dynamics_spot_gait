@@ -53,11 +53,11 @@ private:
   struct termios original_termios_{};
   bool terminal_modified_{false};
 
-  double linear_speed_{0.2};    ///< m/s, current forward/strafe speed setting
+  double linear_speed_{0.4};    ///< m/s, current forward/strafe speed setting
   double angular_speed_{0.6};   ///< rad/s, current turn speed setting
   double linear_step_{0.05};    ///< m/s, +/- key increment
   double angular_step_{0.1};    ///< rad/s, +/- key increment
-  double max_linear_speed_{0.4};
+  double max_linear_speed_{0.55};
   double max_angular_speed_{1.2};
 
   geometry_msgs::msg::Twist current_twist_;

@@ -1,10 +1,3 @@
-"""Launches robot_dog_controller_node with the tunable gait parameters.
-
-Usage:
-  ros2 launch robot_dog_gait gait_controller.launch.py
-  ros2 launch robot_dog_gait gait_controller.launch.py params_file:=/path/to/custom.yaml
-"""
-
 import os
 
 from ament_index_python.packages import get_package_share_directory

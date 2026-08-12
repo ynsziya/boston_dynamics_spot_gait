@@ -1,14 +1,3 @@
-"""RViz-only preview of the robot: no Gazebo, no controllers.
-
-Publishes the URDF on /robot_description and lets you drag joint sliders
-(joint_state_publisher_gui) to sanity-check the model -- useful for
-double-checking geometry/mesh changes before spinning up the full
-simulation.
-
-Usage:
-  ros2 launch robot_dog_gait display.launch.py
-"""
-
 import os
 
 from ament_index_python.packages import get_package_share_directory

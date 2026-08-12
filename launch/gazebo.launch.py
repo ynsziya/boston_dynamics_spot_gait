@@ -1,17 +1,3 @@
-"""Full Gazebo simulation: world + robot spawn + ros2_control + our gait
-controller + sensor bridges + RViz.
-
-Self-contained: this package owns its own copy of the URDF, meshes,
-controller-manager config and world file (see urdf/, meshes/, config/,
-worlds/), so it does not depend on any sibling description package at
-runtime.
-
-Usage:
-  ros2 launch robot_dog_gait gazebo.launch.py
-  ros2 launch robot_dog_gait gazebo.launch.py world_sdf:=/path/to/other.sdf
-  ros2 launch robot_dog_gait gazebo.launch.py spawn_gait_controller:=false
-"""
-
 import os
 
 from ament_index_python.packages import get_package_share_directory
