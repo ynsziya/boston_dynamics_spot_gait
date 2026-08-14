@@ -44,6 +44,20 @@ The simulation stack is **self-contained**: URDF, meshes, Gazebo world, and cont
 
 ---
 
+# 🎥 Demo
+
+The following video demonstrates the **Robot Dog Gait** system running with ROS 2 and Gazebo:
+
+<div align="center">
+
+[![Robot Dog Gait Demo](https://img.youtube.com/vi/o2na5xc01gE/maxresdefault.jpg)](https://youtu.be/o2na5xc01gE)
+
+**▶️ Watch the Robot Dog Gait Demo**
+
+</div>
+
+---
+
 ## 📁 Package Structure
 
 ```
